@@ -8,9 +8,9 @@ import time
 
 import logging
 
-from http import HTTPStatus
+import telegram
 
-from telegram import Bot
+from http import HTTPStatus
 
 from dotenv import load_dotenv
 
@@ -70,9 +70,8 @@ def get_api_answer(timestamp):
             params={'from_date': timestamp}
         )
     except Exception as error:
-        logging.error(
-            f'Проблема с запросом к эндпоинту API-сервиса: {error}'
-        )
+        message = f'Проблема с запросом к эндпоинту API-сервиса: {error}'
+        logging.error(message)
     if response.status_code != HTTPStatus.OK:
         message = f'Неверный статус-код: {response.status_code}'
         logging.error(message)
@@ -82,15 +81,19 @@ def get_api_answer(timestamp):
 
 def check_response(response):
     """Проверка ответа API на соответствие документации."""
-    if (not isinstance(response, dict)
-            or not isinstance(response['homeworks'], list)):
-        raise TypeError
-    try:
-        homework = response['homeworks'][0]
-    except Exception as error:
-        message = f'В домашке нет ключа homeworks: {error}'
+    if not isinstance(response, dict):
+        message = 'Ответ API не является словарем'
         logging.error(message)
-    return homework
+        raise TypeError
+    if 'homeworks' not in response:
+        message = 'В ответе API нет ключа homeworks'
+        logging.error(message)
+        raise KeyError
+    if not isinstance(response['homeworks'], list):
+        message = 'Ключ homeworks не является списком'
+        logging.error(message)
+        raise TypeError
+    return response['homeworks'][0]
 
 
 def parse_status(homework):
@@ -120,9 +123,11 @@ def main():
         message = f'Отсутствует переменная окружения: {error}'
         logging.critical(message)
 
-    bot = Bot(token=TELEGRAM_TOKEN)
+    if not TELEGRAM_TOKEN:
+        raise Exception
+    else:
+        bot = telegram.Bot(token=TELEGRAM_TOKEN)
     timestamp = int(time.time())
-    # timestamp = 0
 
     current_status = ''
 
