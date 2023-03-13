@@ -58,9 +58,8 @@ def get_api_answer(timestamp):
             headers=HEADERS,
             params={'from_date': timestamp}
         )
-    except Exception as error:
-        message = f'Проблема с запросом к эндпоинту API-сервиса: {error}'
-        logging.error(message)
+    except requests.exceptions.RequestException as error:
+        raise Exception(f'Ошибка запроса к эндпоинту API-сервиса: {error}')
     if response.status_code != HTTPStatus.OK:
         raise ApiStatusError
     return response.json()
@@ -118,6 +117,7 @@ def main():
         try:
             response = get_api_answer(timestamp)
             homework = check_response(response)
+            timestamp = response.get('current_date', timestamp)
             if homework:
                 message = parse_status(homework[0])
                 send_message(bot, message)
